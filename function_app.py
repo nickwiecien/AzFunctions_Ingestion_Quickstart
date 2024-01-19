@@ -10,6 +10,7 @@ from io import BytesIO
 
 from doc_intelligence_utilities import analyze_pdf, extract_results
 from aoai_utilities import generate_embeddings
+from ai_search_utilities import create_vector_index, get_current_index, create_update_index_alias, insert_documents_vector
 
 app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
@@ -34,6 +35,7 @@ def pdf_orchestrator(context):
     chunks_container = payload.get("chunks_container")
     doc_intel_results_container = payload.get("doc_intel_results_container")
     extract_container = payload.get("extract_container")
+    index_stem_name = payload.get("index_stem_name")
 
     parent_files = []
 
@@ -62,7 +64,13 @@ def pdf_orchestrator(context):
     for file in extracted_pdf_files:
         generate_embeddings_tasks.append(context.call_activity("generate_extract_embeddings", json.dumps({'extract_container': extract_container, 'file': file})))
     processed_documents = yield context.task_all(generate_embeddings_tasks)
-    t = ''
+    
+    latest_index, fields = get_current_index(index_stem_name)
+
+    insert_tasks = []
+    for file in processed_documents:
+        insert_tasks.append(context.call_activity("insert_manual_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
+    insert_results = yield context.task_all(insert_tasks)
     
     return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
 
@@ -240,3 +248,52 @@ def generate_extract_embeddings(activitypayload: str):
         extract_blob.upload_blob(json.dumps(updated_record), overwrite=True)
 
     return file
+
+# Activity
+@app.activity_trigger(input_name="activitypayload")
+def insert_manual_record(activitypayload: str):
+
+    data = json.loads(activitypayload)
+    file = data.get("file")
+    index = data.get("index")
+    fields = data.get("fields")
+    extracts_container = data.get("extracts-container")
+
+    blob_service_client = BlobServiceClient.from_connection_string(os.environ['STORAGE_CONN_STR'])
+    container_client = blob_service_client.get_container_client(container=extracts_container)
+
+    blob_client = container_client.get_blob_client(blob=file)
+
+    file_data = (blob_client.download_blob().readall()).decode('utf-8')
+    file_data =  json.loads(file_data)
+
+    file_data = {key: value for key, value in file_data.items() if key in fields}
+
+    insert_documents_vector([file_data], index)
+
+    return file
+
+
+@app.route(route="create_new_index", auth_level=func.AuthLevel.FUNCTION)
+def create_new_index(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a request.')
+
+    data = req.get_json()
+    stem_name = data.get("index_stem_name")
+    fields = data.get("fields")
+
+    response = create_vector_index(stem_name, fields)
+
+    return response
+
+@app.route(route="update_index_alias", auth_level=func.AuthLevel.FUNCTION)
+def update_index_alias(req: func.HttpRequest) -> func.HttpResponse:
+    
+    data = req.get_json()
+    stem_name = data.get("record")
+    
+    latest_index  = get_current_index(stem_name)
+
+    response = create_update_index_alias(stem_name, latest_index)
+
+    return  response

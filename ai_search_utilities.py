@@ -57,7 +57,11 @@ def get_current_index(index_stem_name):
     # Get the oldest and newest index based on timestamps
     # oldest_index = timestamp_to_index_dict[timestamps[0]]
     newest_index = timestamp_to_index_dict[timestamps[-1]]
-    return newest_index
+
+    index = client.get_index(newest_index)
+    fields = [f.name for f in index.fields]
+
+    return newest_index, fields
    
 
 def insert_documents_vector(documents, index_name):
@@ -104,8 +108,17 @@ def create_vector_index(stem_name, user_fields):
     fields = [
         SimpleField(name="id", type=SearchFieldDataType.String, key=True)]
     
-    for field in user_fields:
-        fields.append(SearchableField(name=field, type=SearchFieldDataType.String, searchable=True,  filterable=True))
+    for field, field_type in user_fields.items():
+        if field_type == 'string':
+            fields.append(SearchableField(name=field, type=SearchFieldDataType.String, searchable=True,  filterable=True))
+        elif field_type == 'int':
+            fields.append(SearchableField(name=field, type=SearchFieldDataType.Int32, searchable=True, filterable=True))
+        elif field_type == 'datetime':
+            fields.append(SearchableField(name=field, type=SearchFieldDataType.DateTimeOffset, searchable=True, filterable=True))
+        elif field_type == 'double':
+            fields.append(SearchableField(name=field, type=SearchFieldDataType.Double, searchable=True, filterable=True))
+        elif field_type == 'bool':
+            fields.append(SearchableField(name=field, type=SearchFieldDataType.Boolean, searchable=True, filterable=True))
 
     fields = fields + [ SearchField(name="embeddings", type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
                     searchable=True, vector_search_dimensions=1536, vector_search_profile_name="vector-config")]

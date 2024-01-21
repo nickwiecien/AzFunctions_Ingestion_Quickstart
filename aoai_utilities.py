@@ -41,3 +41,39 @@ def generate_embeddings(text):
     # Extract embeddings from the response6
     embeddings = response['data'][0]['embedding']
     return embeddings
+
+def get_transcription(filename):
+
+    import tempfile
+
+    openai.api_type = "azure"
+    openai.api_base = os.environ['AOAI_WHISPER_ENDPOINT']
+    openai.api_key = os.environ['AOAI_WHISPER_KEY']
+    openai.api_version = "2023-09-01-preview"
+
+    model_name = "whisper-1"
+    deployment_id =  os.environ['AOAI_WHISPER_MODEL']
+    audio_language="en"
+
+    transcript = ''
+
+    transcribed = False
+
+    while not transcribed:
+        try:
+            result = openai.Audio.transcribe(
+                file=open(filename, "rb"),            
+                model=model_name,
+                deployment_id=deployment_id
+            )
+            transcript = result.text
+            transcribed = True
+        except Exception as e:
+            print(e)
+            time.sleep(10)
+            pass
+
+    if len(transcript)>0:
+        return transcript
+
+    raise Exception("No transcript generated")

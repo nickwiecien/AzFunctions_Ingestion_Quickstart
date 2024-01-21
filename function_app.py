@@ -7,9 +7,10 @@ import hashlib
 from azure.storage.blob import BlobServiceClient
 from PyPDF2 import PdfReader, PdfWriter
 from io import BytesIO
+import tempfile
 
 from doc_intelligence_utilities import analyze_pdf, extract_results
-from aoai_utilities import generate_embeddings
+from aoai_utilities import generate_embeddings, get_transcription
 from ai_search_utilities import create_vector_index, get_current_index, create_update_index_alias, insert_documents_vector
 
 app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
@@ -26,7 +27,7 @@ async def http_start(req: func.HttpRequest, client):
     response = client.create_check_status_response(req, instance_id)
     return response
 
-# Orchestrator
+# Orchestrators
 @app.orchestration_trigger(context_name="context")
 def pdf_orchestrator(context):
     
@@ -69,12 +70,51 @@ def pdf_orchestrator(context):
 
     insert_tasks = []
     for file in processed_documents:
-        insert_tasks.append(context.call_activity("insert_manual_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
+        insert_tasks.append(context.call_activity("insert_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
     insert_results = yield context.task_all(insert_tasks)
     
     return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
 
-# Activity
+@app.orchestration_trigger(context_name="context")
+def MP3_orchestrator(context):
+    
+    payload = context.get_input()
+    source_container = payload.get("source_container")
+    transcription_results_container = payload.get("transcription_results_container")
+    extract_container = payload.get("extract_container")
+    index_stem_name = payload.get("index_stem_name")
+    prefix_path = payload.get("prefix_path")
+
+    parent_files = []
+
+    extracted_files = []
+    
+    # Get the list of files in the source container
+    files = yield context.call_activity("get_source_files", json.dumps({'source_container': source_container, 'extension': '.mp3', 'prefix': prefix_path}))
+
+    # Transcribe all files with AOAI whisper model and save transcriptions to transcript/extract container
+    transcribe_files_tasks = []
+    for file in files:
+        parent_files.append(file)
+        transcribe_files_tasks.append(context.call_activity("transcribe_audio_files", json.dumps({'source_container': source_container, 'extract_container': extract_container, 'transcription_results_container': transcription_results_container, 'file': file})))
+    transcribed_files = yield context.task_all(transcribe_files_tasks)
+
+
+    generate_embeddings_tasks = []
+    for file in transcribed_files:
+        generate_embeddings_tasks.append(context.call_activity("generate_extract_embeddings", json.dumps({'extract_container': extract_container, 'file': file})))
+    processed_documents = yield context.task_all(generate_embeddings_tasks)
+    
+    latest_index, fields = get_current_index(index_stem_name)
+
+    insert_tasks = []
+    for file in processed_documents:
+        insert_tasks.append(context.call_activity("insert_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
+    insert_results = yield context.task_all(insert_tasks)
+    
+    return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
+
+# Activities
 @app.activity_trigger(input_name="activitypayload")
 def get_source_files(activitypayload: str):
 
@@ -91,7 +131,7 @@ def get_source_files(activitypayload: str):
     files = []
 
     for blob in blobs:
-        if blob.name.endswith(extension):
+        if blob.name.lower().endswith(extension):
             files.append(blob.name)
 
     return files
@@ -224,6 +264,70 @@ def process_pdf_with_document_intelligence(activitypayload: str):
     return updated_filename
 
 @app.activity_trigger(input_name="activitypayload")
+def transcribe_audio_files(activitypayload: str):
+
+    data = json.loads(activitypayload)
+    source_container_name = data.get("source_container")
+    extract_container_name = data.get("extract_container")
+    transcription_results_container_name = data.get("transcription_results_container")
+    file = data.get("file")
+
+    transcript_file_name = file.replace('.mp3', '.txt').replace('.wav', '.txt').replace('.MP3', '.txt').replace('.WAV', '.txt')
+    extract_file_name = file.replace('.mp3', '.json').replace('.wav', '.json').replace('.MP3', '.json').replace('.WAV', '.json')
+
+    blob_service_client = BlobServiceClient.from_connection_string(os.environ['STORAGE_CONN_STR'])
+    source_container = blob_service_client.get_container_client(source_container_name)
+    extract_container = blob_service_client.get_container_client(extract_container_name)
+    transcription_results_container = blob_service_client.get_container_client(transcription_results_container_name)
+
+    transcript_blob_client = transcription_results_container.get_blob_client(blob=transcript_file_name)
+
+    if not transcript_blob_client.exists():
+        audio_blob_client = source_container.get_blob_client(blob=file)
+        audio_data = audio_blob_client.download_blob().readall()
+
+        # Get the extension of the blob
+        _, extension = os.path.splitext(audio_blob_client.blob_name)
+
+        # Download the blob to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
+            temp_file.write(audio_data)
+
+        print(f'Saved {audio_blob_client.blob_name} to {temp_file.name}\n')
+
+        local_audio_file = temp_file.name
+
+        try:
+            transcript = get_transcription(local_audio_file)
+        except Exception as e:
+            pass
+        finally:
+            os.remove(local_audio_file)
+
+        transcript_blob_client.upload_blob(transcript, overwrite=True)
+
+    transcript_text = transcript_blob_client.download_blob().readall().decode('utf-8')
+
+    id_str = file
+    hash_object = hashlib.sha256()  
+    hash_object.update(id_str.encode('utf-8'))  
+    id = hash_object.hexdigest()  
+
+    record = {
+        'sourcefile': file,
+        'content': transcript_text,
+        'id': str(id),
+        'category': 'audio'
+    }
+
+    extract_blob_client = extract_container.get_blob_client(blob=extract_file_name)
+
+    extract_blob_client.upload_blob(json.dumps(record), overwrite=True)
+
+    return extract_file_name
+
+
+@app.activity_trigger(input_name="activitypayload")
 def generate_extract_embeddings(activitypayload: str):
 
     data = json.loads(activitypayload)
@@ -251,7 +355,7 @@ def generate_extract_embeddings(activitypayload: str):
 
 # Activity
 @app.activity_trigger(input_name="activitypayload")
-def insert_manual_record(activitypayload: str):
+def insert_record(activitypayload: str):
 
     data = json.loads(activitypayload)
     file = data.get("file")

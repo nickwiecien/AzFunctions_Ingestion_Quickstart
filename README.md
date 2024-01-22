@@ -28,17 +28,31 @@ By leveraging Azure Durable Functions, the project orchestrates the complex work
 ### Configuration
 Configure the environment variables in your Azure Function App settings as follows:
 
-| Variable Name                | Description                                               |\n|------------------------------|-----------------------------------------------------------|\n| `STORAGE_CONN_STR`           | Azure Storage account connection string                   |\n| `DOC_INTEL_ENDPOINT`         | Endpoint for Azure Document Intelligence service          |\n| `DOC_INTEL_KEY`              | Key for Azure Document Intelligence service               |\n| `AOAI_KEY`                   | Key for Azure OpenAI service                              |\n| `AOAI_ENDPOINT`              | Endpoint for Azure OpenAI service                         |\n| `AOAI_EMBEDDINGS_MODEL`      | Model for generating embeddings with Azure OpenAI         |\n| `AOAI_WHISPER_KEY`           | Key for Azure OpenAI Whisper model                        |\n| `AOAI_WHISPER_ENDPOINT`      | Endpoint for Azure OpenAI Whisper model                   |\n| `AOAI_WHISPER_MODEL`         | Model for transcribing audio with Azure OpenAI            |\n| `SEARCH_ENDPOINT`            | Endpoint for Azure AI Search service                      |\n| `SEARCH_KEY`                 | Key for Azure AI Search service                           |\n| `SEARCH_SERVICE_NAME`        | Name of the Azure AI Search service instance              |
+| Variable Name                | Description                                               |
+|------------------------------|-----------------------------------------------------------|
+| `STORAGE_CONN_STR`           | Azure Storage account connection string                   |
+| `DOC_INTEL_ENDPOINT`         | Endpoint for Azure Document Intelligence service          |
+| `DOC_INTEL_KEY`              | Key for Azure Document Intelligence service               |
+| `AOAI_KEY`                   | Key for Azure OpenAI service                              |
+| `AOAI_ENDPOINT`              | Endpoint for Azure OpenAI service                         |
+| `AOAI_EMBEDDINGS_MODEL`      | Model for generating embeddings with Azure OpenAI         |
+| `AOAI_WHISPER_KEY`           | Key for Azure OpenAI Whisper model                        |
+| `AOAI_WHISPER_ENDPOINT`      | Endpoint for Azure OpenAI Whisper model                   |
+| `AOAI_WHISPER_MODEL`         | Model for transcribing audio with Azure OpenAI            |
+| `SEARCH_ENDPOINT`            | Endpoint for Azure AI Search service                      |
+| `SEARCH_KEY`                 | Key for Azure AI Search service                           |
+| `SEARCH_SERVICE_NAME`        | Name of the Azure AI Search service instance              |
 
 
-
-### Orchestrators\nThe project contains orchestrators tailored for specific data types:
+### Orchestrators
+The project contains orchestrators tailored for specific data types:
 - `pdf_orchestrator`: Orchestrates the processing of PDF files, including splitting, analyzing, and generating embeddings.
 - `mp3_orchestrator`: Orchestrates the transcription and vectorization of MP3 audio files.
 - `wav_orchestrator`: Orchestrates the transcription and vectorization of WAV audio files.
 - `index_documents_orchestrator`: Orchestrates the indexing of processed documents into Azure AI Search.
 
-### Activities\nThe orchestrators utilize the following activities to perform discrete tasks:
+### Activities
+The orchestrators utilize the following activities to perform discrete tasks:
 - `get_source_files`: Retrieves a list of files from a specified Azure Storage container.
 - `split_pdf_files`: Splits PDF files into individual pages and stores them as separate files.
 - `process_pdf_with_document_intelligence`: Processes PDF chunks using Azure Document Intelligence and extracts relevant data.
@@ -46,7 +60,8 @@ Configure the environment variables in your Azure Function App settings as follo
 - `generate_extract_embeddings`: Generates vector embeddings for the processed text data
 - `insert_record`: Inserts processed data records into the Azure AI Search index.
 
-### Standalone Functions\nIn addition to orchestrators and activities, the project includes standalone functions for index management:
+### Standalone Functions
+In addition to orchestrators and activities, the project includes standalone functions for index management:
 - `create_new_index`: Creates a new Azure AI Search index with the specified fields.
 - `update_index_alias`: Updates an index alias to point to the latest version of an index, facilitating blue-green deployments and other staged rollout strategies.
 

@@ -11,6 +11,7 @@ By leveraging Azure Durable Functions, the project orchestrates the complex work
 - **Vectorization**: Transformation of textual and auditory information into vector embeddings suitable for AI models.
 - **Index Management**: Tools for creating and updating Azure AI Search indexes to optimize data retrieval.
 - **Workflow Orchestration**: Utilization of Durable Functions to coordinate and manage data processing tasks.
+- **Postman Collection**: Sample postman collection (`AzFunc_IngestionOps.postman_collection`) demonstrating calling of all functions.
 
 ## Getting Started
 

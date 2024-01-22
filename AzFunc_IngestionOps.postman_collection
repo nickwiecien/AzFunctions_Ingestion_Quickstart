@@ -1,0 +1,212 @@
+{
+	"info": {
+		"_postman_id": "83591b28-39d1-47f2-8ccc-0f974f2d9062",
+		"name": "Ingestion Work",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "7106514"
+	},
+	"item": [
+		{
+			"name": "Trigger PDF Ingestion",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"source_container\": \"source\",\r\n    \"chunks_container\": \"chunks\",\r\n    \"doc_intel_results_container\": \"doc-intel-results\",\r\n    \"extract_container\": \"extracts\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/orchestrators/pdf_orchestrator?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"orchestrators",
+						"pdf_orchestrator"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trigger MP3 Ingestion",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"source_container\": \"audio-files\",\r\n    \"transcription_results_container\": \"audio-transcripts\",\r\n    \"extract_container\": \"audio-extract\",\r\n    \"prefix_path\": \"240121\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/orchestrators/mp3_Orchestrator?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"orchestrators",
+						"mp3_Orchestrator"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trigger Audio Indexing",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"index_stem_name\": \"audio-files\",\r\n    \"extract_container\": \"audio-extract\",\r\n    \"prefix_path\": \"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/orchestrators/index_documents_orchestrator?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"orchestrators",
+						"index_documents_orchestrator"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trigger PDF Indexing",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"index_stem_name\": \"peloton-manuals\",\r\n    \"extract_container\": \"extracts\",\r\n    \"prefix_path\": \"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/orchestrators/index_documents_orchestrator?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"orchestrators",
+						"index_documents_orchestrator"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create New PDF Index",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"index_stem_name\": \"peloton-manuals\",\r\n    \"fields\": {\"content\": \"string\", \"pagenumber\": \"int\", \"sourcefile\": \"string\", \"sourcepage\": \"string\", \"category\": \"string\"}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/create_new_index?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"create_new_index"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create New Audio Index",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"index_stem_name\": \"audio-files\",\r\n    \"fields\": {\"content\": \"string\", \"sourcefile\": \"string\", \"category\": \"string\"}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{AZURE_FUNCTIONS_URL}}/api/create_new_index?code={{AZURE_FUNCTIONS_KEY}}",
+					"host": [
+						"{{AZURE_FUNCTIONS_URL}}"
+					],
+					"path": [
+						"api",
+						"create_new_index"
+					],
+					"query": [
+						{
+							"key": "code",
+							"value": "{{AZURE_FUNCTIONS_KEY}}"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

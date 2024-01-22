@@ -1,8 +1,8 @@
-# Azure Functions Ingestion - Generative AI Quickstart
+# Azure Functions Quickstart - Generative AI Data Ingestion Functions
 
 ## Project Overview
 
-The 'Azure Functions Ingestion - Generative AI Quickstart' is an Azure Durable Functions project aimed at streamlining the process of ingesting, chunking, and vectorizing various data types such as PDFs, MP3s, WAV files, and more. These processes are critical for indexing and utilizing data in Retrieval Augmented Generation (RAG) patterns within Generative AI applications.
+The 'Azure Functions Quickstart - Generative AI Data Ingestion Functions' project is an Azure Durable Functions project aimed at streamlining the process of ingesting, chunking, and vectorizing various data types such as PDFs, MP3s, WAV files, and more. These processes are critical for indexing and utilizing data in Retrieval Augmented Generation (RAG) patterns within Generative AI applications.
 
 By leveraging Azure Durable Functions, the project orchestrates the complex workflows involved in data processing, ensuring efficiency and scalability. It includes capabilities for creating and managing Azure AI Search indexes, updating index aliases for deployment strategies, and indexing large volumes of pre-processed documents in bulk.
 

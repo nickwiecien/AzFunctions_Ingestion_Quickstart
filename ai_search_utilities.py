@@ -23,11 +23,9 @@ def get_current_index(index_stem_name):
     Manages indexes by updating an alias to point to the newest index, and deleting the oldest index if necessary.
 
     Args:
-    search_service_name (str): The name of the Azure Cognitive Search service.
-    search_endpoint (str): The endpoint of the Azure Cognitive Search service.
-    search_key (str): The admin key of the Azure Cognitive Search service.
     index_stem_name (str): The stem of the index name to filter out relevant indexes.
     """
+    # Get the search key, endpoint, and service name from environment variables
     search_key = os.environ['SEARCH_KEY']
     search_endpoint = os.environ['SEARCH_ENDPOINT']
     search_service_name = os.environ['SEARCH_SERVICE_NAME']
@@ -54,10 +52,10 @@ def get_current_index(index_stem_name):
     # Sort timestamps from oldest to newest
     timestamps = sorted(timestamp_to_index_dict.keys())
     
-    # Get the oldest and newest index based on timestamps
-    # oldest_index = timestamp_to_index_dict[timestamps[0]]
+    # Get the newest index based on timestamps
     newest_index = timestamp_to_index_dict[timestamps[-1]]
 
+    # Get the index details
     index = client.get_index(newest_index)
     fields = [f.name for f in index.fields]
 
@@ -69,14 +67,10 @@ def insert_documents_vector(documents, index_name):
     Inserts a document vector into the specified search index on Azure Cognitive Search.
 
     Args:
-    endpoint (str): The endpoint of the search service.
-    key (str): The API key for the search service.
+    documents (list): The list of documents to insert.
     index_name (str): The name of the search index.
-    document (dict): The document vector to insert.
-
-    Returns:
-    result (dict): The result of the document upload operation.
     """
+    # Get the search key, endpoint, and service name from environment variables
     search_key = os.environ['SEARCH_KEY']
     search_endpoint = os.environ['SEARCH_ENDPOINT']
     search_service_name = os.environ['SEARCH_SERVICE_NAME']
@@ -91,13 +85,16 @@ def insert_documents_vector(documents, index_name):
     return result
 
 def create_vector_index(stem_name, user_fields):
+    # Get the search key, endpoint, and service name from environment variables
     search_key = os.environ['SEARCH_KEY']
     search_endpoint = os.environ['SEARCH_ENDPOINT']
     search_service_name = os.environ['SEARCH_SERVICE_NAME']
 
+    # Get the current time and format it as a string
     now =  datetime.now()
     timestamp  = datetime.strftime(now, "%Y%m%d%H%M%S")
 
+    # Create the index name by appending the timestamp to the stem name
     index_name  = f'{stem_name}-{timestamp}'
 
     # Create a SearchIndexClient object
@@ -105,9 +102,9 @@ def create_vector_index(stem_name, user_fields):
     client = SearchIndexClient(endpoint=search_endpoint, credential=credential)
 
     # Define the fields for the index
-    fields = [
-        SimpleField(name="id", type=SearchFieldDataType.String, key=True)]
+    fields = [SimpleField(name="id", type=SearchFieldDataType.String, key=True)]
     
+    # Add user-defined fields to the index
     for field, field_type in user_fields.items():
         if field_type == 'string':
             fields.append(SearchableField(name=field, type=SearchFieldDataType.String, searchable=True,  filterable=True))
@@ -120,10 +117,10 @@ def create_vector_index(stem_name, user_fields):
         elif field_type == 'bool':
             fields.append(SearchableField(name=field, type=SearchFieldDataType.Boolean, searchable=True, filterable=True))
 
+    # Add a field for vector embeddings
     fields = fields + [ SearchField(name="embeddings", type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
                     searchable=True, vector_search_dimensions=1536, vector_search_profile_name="vector-config")]
     
-
     # Define vector search configurations
     vector_search = VectorSearch(
         algorithms=[
@@ -152,10 +149,10 @@ def create_update_index_alias(alias_name, target_index):
     target_index (str): The name of the index that the alias should point to.
     """
 
+    # Get the search key, endpoint, and service name from environment variables
     search_key = os.environ['SEARCH_KEY']
     search_endpoint = os.environ['SEARCH_ENDPOINT']
     search_service_name = os.environ['SEARCH_SERVICE_NAME']
-
 
     # Construct the URI for alias creation
     uri = f'https://{search_service_name}.search.windows.net/aliases?api-version=2023-07-01-Preview'
@@ -164,7 +161,6 @@ def create_update_index_alias(alias_name, target_index):
         "name": alias_name,
         "indexes": [target_index]
     }
-    print(target_index)
     
     try:
         # Attempt to create the alias

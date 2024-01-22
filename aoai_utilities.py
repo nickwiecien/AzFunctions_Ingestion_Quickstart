@@ -12,9 +12,6 @@ def generate_embeddings(text):
 
     Args:
         text (str): The text to generate embeddings for.
-        embeddings_model (str): The name of the embeddings model to use.
-        aoai_endpoint (str): The endpoint of the OpenAI Azure service.
-        aoai_key (str): The key of the OpenAI Azure service.
 
     Returns:
         embeddings (list): The embeddings generated for the given text.
@@ -38,27 +35,41 @@ def generate_embeddings(text):
             print(e)
             time.sleep(5)
 
-    # Extract embeddings from the response6
+    # Extract embeddings from the response
     embeddings = response['data'][0]['embedding']
     return embeddings
 
 def get_transcription(filename):
+    """
+    Transcribes the given audio file using the specified transcription model provided by OpenAI.
 
-    import tempfile
+    Args:
+        filename (str): The path to the audio file to transcribe.
 
+    Returns:
+        transcript (str): The transcription of the audio file.
+    """
+
+    # Configure OpenAI with Azure settings
     openai.api_type = "azure"
     openai.api_base = os.environ['AOAI_WHISPER_ENDPOINT']
     openai.api_key = os.environ['AOAI_WHISPER_KEY']
     openai.api_version = "2023-09-01-preview"
 
+    # Specify the model and deployment ID for the transcription
     model_name = "whisper-1"
     deployment_id =  os.environ['AOAI_WHISPER_MODEL']
+
+    # Specify the language of the audio
     audio_language="en"
 
+    # Initialize an empty string to store the transcript
     transcript = ''
 
+    # Initialize variable to track if the audio has been transcribed
     transcribed = False
 
+    # Attempt to transcribe the audio, retrying on failure
     while not transcribed:
         try:
             result = openai.Audio.transcribe(
@@ -68,12 +79,14 @@ def get_transcription(filename):
             )
             transcript = result.text
             transcribed = True
-        except Exception as e:
+        except Exception as e:  # Catch any exceptions and retry after a delay
             print(e)
             time.sleep(10)
             pass
 
+    # If a transcript was generated, return it
     if len(transcript)>0:
         return transcript
 
+    # If no transcript was generated, raise an exception
     raise Exception("No transcript generated")

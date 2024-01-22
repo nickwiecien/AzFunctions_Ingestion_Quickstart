@@ -36,7 +36,6 @@ def pdf_orchestrator(context):
     chunks_container = payload.get("chunks_container")
     doc_intel_results_container = payload.get("doc_intel_results_container")
     extract_container = payload.get("extract_container")
-    index_stem_name = payload.get("index_stem_name")
 
     parent_files = []
 
@@ -66,29 +65,19 @@ def pdf_orchestrator(context):
         generate_embeddings_tasks.append(context.call_activity("generate_extract_embeddings", json.dumps({'extract_container': extract_container, 'file': file})))
     processed_documents = yield context.task_all(generate_embeddings_tasks)
     
-    latest_index, fields = get_current_index(index_stem_name)
-
-    insert_tasks = []
-    for file in processed_documents:
-        insert_tasks.append(context.call_activity("insert_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
-    insert_results = yield context.task_all(insert_tasks)
-    
     return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
 
 @app.orchestration_trigger(context_name="context")
-def MP3_orchestrator(context):
+def mp3_orchestrator(context):
     
     payload = context.get_input()
     source_container = payload.get("source_container")
     transcription_results_container = payload.get("transcription_results_container")
     extract_container = payload.get("extract_container")
-    index_stem_name = payload.get("index_stem_name")
     prefix_path = payload.get("prefix_path")
 
     parent_files = []
 
-    extracted_files = []
-    
     # Get the list of files in the source container
     files = yield context.call_activity("get_source_files", json.dumps({'source_container': source_container, 'extension': '.mp3', 'prefix': prefix_path}))
 
@@ -105,14 +94,59 @@ def MP3_orchestrator(context):
         generate_embeddings_tasks.append(context.call_activity("generate_extract_embeddings", json.dumps({'extract_container': extract_container, 'file': file})))
     processed_documents = yield context.task_all(generate_embeddings_tasks)
     
+    return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
+
+@app.orchestration_trigger(context_name="context")
+def wav_orchestrator(context):
+    
+    payload = context.get_input()
+    source_container = payload.get("source_container")
+    transcription_results_container = payload.get("transcription_results_container")
+    extract_container = payload.get("extract_container")
+    prefix_path = payload.get("prefix_path")
+
+    parent_files = []
+
+    extracted_files = []
+    
+    # Get the list of files in the source container
+    files = yield context.call_activity("get_source_files", json.dumps({'source_container': source_container, 'extension': '.wav', 'prefix': prefix_path}))
+
+    # Transcribe all files with AOAI whisper model and save transcriptions to transcript/extract container
+    transcribe_files_tasks = []
+    for file in files:
+        parent_files.append(file)
+        transcribe_files_tasks.append(context.call_activity("transcribe_audio_files", json.dumps({'source_container': source_container, 'extract_container': extract_container, 'transcription_results_container': transcription_results_container, 'file': file})))
+    transcribed_files = yield context.task_all(transcribe_files_tasks)
+
+
+    generate_embeddings_tasks = []
+    for file in transcribed_files:
+        generate_embeddings_tasks.append(context.call_activity("generate_extract_embeddings", json.dumps({'extract_container': extract_container, 'file': file})))
+    processed_documents = yield context.task_all(generate_embeddings_tasks)
+    
+    return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
+
+@app.orchestration_trigger(context_name="context")
+def index_documents_orchestrator(context):
+    
+    payload = context.get_input()
+    extract_container = payload.get("extract_container")
+    index_stem_name = payload.get("index_stem_name")
+    prefix_path = payload.get("prefix_path")
+
+    
+    # Get the list of files in the source container
+    files = yield context.call_activity("get_source_files", json.dumps({'source_container': extract_container, 'extension': '.json', 'prefix': prefix_path}))
+
     latest_index, fields = get_current_index(index_stem_name)
 
     insert_tasks = []
-    for file in processed_documents:
+    for file in files:
         insert_tasks.append(context.call_activity("insert_record", json.dumps({'file': file, 'index': latest_index, 'fields': fields, 'extracts-container': extract_container})))
     insert_results = yield context.task_all(insert_tasks)
     
-    return json.dumps({'parent_files': parent_files, 'processed_documents': processed_documents})
+    return json.dumps({'indexed_documents': insert_results, 'index_name': latest_index})
 
 # Activities
 @app.activity_trigger(input_name="activitypayload")
@@ -353,7 +387,6 @@ def generate_extract_embeddings(activitypayload: str):
 
     return file
 
-# Activity
 @app.activity_trigger(input_name="activitypayload")
 def insert_record(activitypayload: str):
 
@@ -377,7 +410,7 @@ def insert_record(activitypayload: str):
 
     return file
 
-
+# Standalone Functions
 @app.route(route="create_new_index", auth_level=func.AuthLevel.FUNCTION)
 def create_new_index(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')

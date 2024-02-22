@@ -44,7 +44,7 @@ Configure the environment variables in your Azure Function App settings as follo
 | `SEARCH_KEY`                 | Key for Azure AI Search service                           |
 | `SEARCH_SERVICE_NAME`        | Name of the Azure AI Search service instance              |
 
-<i>Note: review the `sample.settings.json` to create a `local.settings.json` environment file for local execution.
+<i>Note: review the `sample.settings.json` to create a `local.settings.json` environment file for local execution.</i>
 
 ### Orchestrators
 The project contains orchestrators tailored for specific data types:
